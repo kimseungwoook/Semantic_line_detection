@@ -1,127 +1,81 @@
-import numpy as np
 import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 
-def hough_transform(H, W, x, y, R, THETA):
-    """
-    :param H: event_count_map Height
-    :param W: event_count_map Width
-    :param x: 특정 x 좌표
-    :param y: 특정 y 좌표
-    :param R: 허프 공간 R
-    :param THETA: 허프 공간 THETA
+class Multi_scale_HoughDictionary(nn.Module):
+    def __init__(self, original_w, original_h, feature_shapes, R, THETA):
+        super().__init__()
+        self.original_w = original_w
+        self.original_h = original_h
+        self.feature_shapes = feature_shapes
+        self.R = R
+        self.THETA = THETA
 
-    :return: Hough_space : 해당 좌표가 허프 공간에서 이루는 곡선 형태 행렬 반환 [R, THETA]
-    """
+        for idx, (H, W) in enumerate(self.feature_shapes):
+            dictionary = self.create_hough_dictionary(H, W)
+            self.register_buffer(f"dictionary_{idx}", dictionary)
 
-    # 입력 event_count_map 생성
-    event_count_map = torch.zeros((H, W))
+    def hough_transform(self, H, W, x, y):
+        # 허프 공간 생성
+        hough_space = torch.zeros((self.R, self.THETA))
+        # 입력 event_count_map 생성
+        event_count_map = torch.zeros((H, W))
+        event_count_map[y, x] = 1
 
-    # 특정 픽셀 선택
-    event_count_map[y, x] = 1
+        center_x = (self.original_w - 1) / 2
+        center_y = (self.original_h - 1) / 2
 
-    # 이미지 중심을 원점으로 변환
-    center_x = (W - 1)  / 2
-    center_y = (H - 1) / 2
+        # 원점을 이미지 중심좌표로 하였을 때 좌표
+        original_x = x * (self.original_w - 1) / (W - 1)
+        original_y = y * (self.original_h - 1) / (H - 1)
 
-    # 이미지 중심으로 하였을 때 특정 좌표
-    x_ = x - center_x
-    y_ = y - center_y
+        x_ = original_x - center_x
+        y_ = original_y - center_y
 
-    # 허프 공간 생성
-    hough_space = torch.zeros((R, THETA))
+        # rho_max : 최대 직선 거리
+        value = center_x ** 2 + center_y ** 2
+        rho_max = torch.sqrt(torch.tensor(value, dtype=torch.float32))
+        rho_step = (rho_max * 2) / self.R
 
-    # 각도 생성
-    angle = torch.arange(0, THETA, dtype=torch.float32)
-    rad = torch.deg2rad(angle)
+        theta_idx = torch.arange(self.THETA)
+        angle = theta_idx.float() * (180.0 / self.THETA)
+        rad = torch.deg2rad(angle)
 
-    # 거리 범위 및 거리 간격 계산 약 3.38px
-    value = center_x**2 + center_y**2
-    rho_max = torch.sqrt(torch.tensor(value, dtype=torch.float32))
-    rho_step = (rho_max * 2) / R
+        # 허프 곡선 계산
+        rho = x_ * torch.cos(rad) + y_ * torch.sin(rad)
 
-    # 허프 곡선 계산
-    rho = x_ * torch.cos(rad) + y_ * torch.sin(rad)
+        # 실제 거리를 허프 공간의 행 번호로 변환
+        rho_idx = torch.floor((rho_max + rho) / rho_step).long()
+        rho_idx = torch.clamp(rho_idx, 0, self.R - 1)
 
-    # 실제 거리를 허프 공간의 행 번호로 변환
-    rho_idx = torch.floor((rho_max + rho) / rho_step).long()
-    rho_idx = torch.clamp(rho_idx, 0, R - 1)
+        hough_space[rho_idx, theta_idx] += event_count_map[y, x]
 
-    # hough space에 적용
-    hough_space[rho_idx, angle.long()] += event_count_map[y, x]
+        return hough_space
 
-    return hough_space
+    def create_hough_dictionary(self, H, W):
+        hough_dictionary = torch.zeros((H * W, self.R, self.THETA))
 
-def create_hough_dictionary(H, W, R, THETA):
-    hough_dictionary = torch.zeros((H*W, R, THETA))
-    print(f"hough_dictionary shape : {hough_dictionary.shape}")
+        HW_count = 0
+        for y in range(H):
+            for x in range(W):
+                hough_space = self.hough_transform(H, W, x, y)
+                hough_dictionary[HW_count] = hough_space
+                HW_count += 1
 
-    HW_count = 0
-    for y in range(H):
-        for x in range(W):
-            hough_space = hough_transform(H, W, x, y, R, THETA)
-            hough_dictionary[HW_count] = hough_space
-            HW_count += 1
+        return hough_dictionary
 
-    print(f"Hough_dictionary shape : {hough_dictionary.shape}")
-    print(hough_dictionary[0].sum())
-    print(hough_dictionary[8].sum())
-    return hough_dictionary
+    # multi-scale의 feature map을 해당 feature map의 해상도와 맞는 hough dictionary와 내적
+    def forward(self, feature_maps):
+        hough_feature_maps = []
+        for idx, feature_map in enumerate(feature_maps):
+            B, C, H, W = feature_map.shape
+            dictionary = getattr(self, f"dictionary_{idx}")
 
-if __name__ == "__main__":
-    H = 5
-    W = 5
-    x = 223
-    y = 130
-    R = 128
-    THETA = 180
-    hough_dictionary = create_hough_dictionary(H, W, R, THETA)
+            feature_map = feature_map.flatten(start_dim=2)
+            hough_dictionary = dictionary.reshape(H*W, self.R * self.THETA)
 
-    fig, axes = plt.subplots(H, W, figsize=(12, 12))
+            hough_feature_map = feature_map @ hough_dictionary
+            hough_feature_map = hough_feature_map.reshape(B, C, self.R, self.THETA)
 
-    for y in range(H):
-        for x in range(W):
-            idx = y * W + x
-
-            axes[y, x].imshow(
-                hough_dictionary[idx].cpu().numpy(),
-                cmap="hot",
-                origin="lower",
-                aspect="auto"
-            )
-            axes[y, x].set_title(f"pixel idx={idx} (x={x}, y={y})")
-            axes[y, x].set_xlabel("Theta")
-            axes[y, x].set_ylabel("Rho")
-
-    plt.tight_layout()
-    plt.show()
-
-    # hough_space = hough_transform(H, W, x, y, R, THETA)
-    #
-    # event_count_map = np.zeros((H, W))
-    # event_count_map[y, x] = 1
-    #
-    # # 시각화
-    # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    #
-    # # 1. 입력 이미지
-    # axes[0].imshow(event_count_map, cmap="gray")
-    # axes[0].scatter(x, y, color="red", s=50)
-    # axes[0].set_title("Event Count Map")
-    # axes[0].set_xlabel("X")
-    # axes[0].set_ylabel("Y")
-    #
-    # # 2. 허프 공간
-    # axes[1].imshow(
-    #     hough_space,
-    #     cmap="hot",
-    #     origin="lower",
-    #     aspect="auto",
-    #     extent=[0, 180, -216.4, 216.4]
-    # )
-    # axes[1].set_title("Hough Space")
-    # axes[1].set_xlabel("Theta (degree)")
-    # axes[1].set_ylabel("Rho (pixel)")
-    #
-    # plt.tight_layout()
-    # plt.show()
+            hough_feature_maps.append(hough_feature_map)
+        return hough_feature_maps
