@@ -30,7 +30,6 @@ class EventDataset(Dataset):
 
             if (folder_name in self.annotations and timestamp in self.annotations[folder_name]):
                 self.event_paths.append(event_path)
-        print(f"{len(self.event_paths)}개의 event_tensor가 annotation과 매칭 and load 완료")
 
     @staticmethod
     def load_annotations(xml_path):
