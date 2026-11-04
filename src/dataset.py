@@ -80,19 +80,17 @@ class EventDataset(Dataset):
             keepdim = True
         )
 
+        event_input = torch.clamp(count_map.float(), min = 0, max = self.threshold) / 3.0
+
         # 시각화용 이미지
-        count_map_clipped = torch.clamp(
-            count_map,
-            min = 0,
-            max = self.threshold
-        )
-        event_image = (count_map_clipped / self.threshold * 255).to(torch.uint8)
+        event_image = (event_input * 255).to(torch.uint8)
 
         # annotation 매칭
         lines = self.annotations[folder_name][timestamp]
 
         return {
             "count_map" : count_map,
+            "event_input" : event_input,
             "event_image" : event_image,
             "annotation" : lines,
             "file_name" : event_path.name,
