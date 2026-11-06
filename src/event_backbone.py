@@ -28,3 +28,21 @@ class EventBackbone(nn.Module):
         feature_map3 = self.stage3(feature_map2)
 
         return [feature_map1, feature_map2, feature_map3]
+
+    def get_coordinate_operation(self):
+        # 각 Scale의 좌표를 입력 이미지까지 역추적하는 데 필요한 Conv·Pooling의 파라미터 목록을 반환하는 메서드
+        operation = []
+
+        def add_operation(layer):
+            operation.append({
+                "kernel_size": layer.kernel_size,
+                "stride": layer.stride,
+                "padding": layer.padding
+            })
+
+        add_operation(self.stage1[0])
+        add_operation(self.stage1[3])
+        add_operation(self.stage2[0].conv2)
+        add_operation(self.stage3[0].conv2)
+
+        return operation

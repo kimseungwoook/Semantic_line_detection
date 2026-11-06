@@ -123,6 +123,7 @@ if __name__ == "__main__":
             feature_shapes,
             R,
             THETA,
+            operation=model.get_coordinate_operation()
         )
 
         construction_ms = (perf_counter() - start) * 1000
@@ -133,6 +134,11 @@ if __name__ == "__main__":
             for buffer in hough_dictionary.buffers()
         )
         print(f"Dictionary Buffer 메모리: {mib(dictionary_bytes):.3f} MiB")
+
+        for idx in range(3):
+            coord = hough_dictionary.previous_center(1, 1, hough_dictionary.scale_operation[idx])
+            print(f"Scale : {idx} : {coord}")
+
 
         # 3. Device 이동 시간 — Dictionary 생성 시간과 분리
         synchronize(device)

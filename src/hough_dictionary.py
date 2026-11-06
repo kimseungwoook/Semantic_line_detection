@@ -1,33 +1,66 @@
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from src.event_backbone import EventBackbone
 
 class Multi_scale_HoughDictionary(nn.Module):
-    def __init__(self, original_w, original_h, feature_shapes, R, THETA):
+    def __init__(self, original_w, original_h, feature_shapes, R, THETA, operation):
         super().__init__()
         self.original_w = original_w
         self.original_h = original_h
         self.feature_shapes = feature_shapes
         self.R = R
         self.THETA = THETA
+        self.scale_operation = []
 
         for idx, (H, W) in enumerate(self.feature_shapes):
-            dictionary = self.create_hough_dictionary(H, W)
+            self.scale_operation.append(operation[:idx+2])
+
+            dictionary = self.create_hough_dictionary(H, W, idx)
             self.register_buffer(f"dictionary_{idx}", dictionary)
 
-    def hough_transform(self, H, W, x, y):
+    def previous_center(self, x, y, operation):
+        previous_x = x
+        previous_y = y
+
+        def pair(value):
+            if isinstance(value, (tuple, list)):
+                return value
+            return (value, value)
+
+        for param in reversed(operation):
+            kh, kw = pair(param["kernel_size"])
+            sh, sw = pair(param["stride"])
+            ph, pw = pair(param["padding"])
+
+            previous_x = previous_x * sw - pw + (kw - 1) / 2
+            previous_y = previous_y * sh - ph + (kh - 1) / 2
+
+        return previous_x, previous_y
+
+    def hough_transform(self, H, W, x, y, idx):
+        """
+        :param H: feature map의 Height
+        :param W: feature map의 Width
+        :param x: feature map의 x 좌표
+        :param y: feature map의 y 좌표
+        :param idx : event_backbone stage index
+
+        :return: Hough space ==> Hough dictionary로 사용
+        """
         # 허프 공간 생성
         hough_space = torch.zeros((self.R, self.THETA))
-        # 입력 event_count_map 생성
-        event_count_map = torch.zeros((H, W))
-        event_count_map[y, x] = 1
+        # 가상의 입력 feature map 생성
+        feature_map = torch.zeros((H, W))
+        feature_map[y, x] = 1
 
+        # event count map 중심 좌표
         center_x = (self.original_w - 1) / 2
         center_y = (self.original_h - 1) / 2
 
-        # 원점을 이미지 중심좌표로 하였을 때 좌표
-        original_x = x * (self.original_w - 1) / (W - 1)
-        original_y = y * (self.original_h - 1) / (H - 1)
+        # feature map의 x,y 좌표 ---> 이전 feature map의 좌표 계산
+        op = self.scale_operation[idx]
+        original_x, original_y = self.previous_center(x, y, op)
 
         x_ = original_x - center_x
         y_ = original_y - center_y
@@ -48,17 +81,17 @@ class Multi_scale_HoughDictionary(nn.Module):
         rho_idx = torch.floor((rho_max + rho) / rho_step).long()
         rho_idx = torch.clamp(rho_idx, 0, self.R - 1)
 
-        hough_space[rho_idx, theta_idx] += event_count_map[y, x]
+        hough_space[rho_idx, theta_idx] += feature_map[y, x]
 
         return hough_space
 
-    def create_hough_dictionary(self, H, W):
+    def create_hough_dictionary(self, H, W, idx):
         hough_dictionary = torch.zeros((H * W, self.R, self.THETA))
 
         HW_count = 0
         for y in range(H):
             for x in range(W):
-                hough_space = self.hough_transform(H, W, x, y)
+                hough_space = self.hough_transform(H, W, x, y, idx)
                 hough_dictionary[HW_count] = hough_space
                 HW_count += 1
 
