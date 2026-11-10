@@ -1,6 +1,27 @@
 import torch
 import torch.nn as nn
 
+
+# Hough_feature map Scale별 채널 축소 -> concatenate
+class Hough_fusion(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.projection = nn.ModuleList([
+            nn.Conv2d(256, 128, kernel_size=1),
+            nn.Conv2d(512, 128, kernel_size=1),
+            nn.Conv2d(1024, 128, kernel_size=1)
+        ])
+
+    def forward(self, hough_feature_maps):
+        projected_features = []
+        for idx, hmap in enumerate(hough_feature_maps):
+            projected = self.projection[idx](hmap)
+            projected_features.append(projected)
+
+        fusion_feature = torch.cat(projected_features, dim=1)
+
+        return fusion_feature
+
 class HoughDecoder(nn.Module):
     def __init__(self):
         super().__init__()
