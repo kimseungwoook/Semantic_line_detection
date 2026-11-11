@@ -63,9 +63,89 @@ def hough_to_bin(rho, theta, image_w=224, image_h=224, R=112, THETA=100):
 
     return rho_idx, theta_idx
 
-def generate_hough_target(annotations, original_w, original_h, target_w, target_h, R=112, THETA=100, target_label=1.0):
+def make_line_heatmap(
+    rho_idx,
+    theta_idx,
+    R,
+    THETA,
+    sigma_rho=1.0,
+    sigma_theta=1.0,
+    mode="gaussian",
+    kernel_size=5,
+):
     """
-    샘플 하나의 Annotation으로 Binary GT Hough Heatmap을 생성한다.
+    직선 하나의 정답 위치 주변에 분포를 생성한다.
+
+    rho_idx, theta_idx: 정답 중심의 행·열 번호
+    R, THETA: Heatmap의 전체 행·열 수
+    sigma_rho: 행 방향 분포 폭
+    sigma_theta: 열 방향 분포 폭
+    mode: "gaussian" 또는 "laplace2d"
+    kernel_size: 적용할 정사각형 범위. None이면 전체 격자
+    """
+    if R <= 0 or THETA <= 0:
+        raise ValueError("R과 THETA는 양수여야 합니다.")
+
+    if not (0 <= rho_idx < R and 0 <= theta_idx < THETA):
+        raise ValueError("정답 중심이 Heatmap 범위를 벗어났습니다.")
+
+    if sigma_rho <= 0 or sigma_theta <= 0:
+        raise ValueError(
+            "sigma_rho와 sigma_theta는 0보다 커야 합니다."
+        )
+
+    if kernel_size is not None:
+        if not isinstance(kernel_size, int):
+            raise ValueError("kernel_size는 정수 또는 None이어야 합니다.")
+
+        if kernel_size <= 0 or kernel_size % 2 == 0:
+            raise ValueError("kernel_size는 양의 홀수여야 합니다.")
+
+    rho_grid, theta_grid = torch.meshgrid(
+        torch.arange(R, dtype=torch.float32),
+        torch.arange(THETA, dtype=torch.float32),
+        indexing="ij",
+    )
+
+    rho_difference = rho_grid - rho_idx
+    theta_difference = theta_grid - theta_idx
+
+    rho_distance = rho_difference / sigma_rho
+    theta_distance = theta_difference / sigma_theta
+
+    D = rho_distance**2 + theta_distance**2
+
+    if mode == "gaussian":
+        gt_heatmap = torch.exp((-0.5)*D)
+
+    elif mode == "laplace2d":
+        gt_heatmap = torch.exp(-torch.sqrt(D))
+
+    else:
+        raise ValueError(
+            'mode는 "gaussian" 또는 "laplace2d"여야 합니다.'
+        )
+
+    if kernel_size is not None:
+        radius = kernel_size // 2
+
+        rho_mask = rho_difference.abs() <= radius
+        theta_mask = theta_difference.abs() <= radius
+
+        mask = rho_mask & theta_mask
+
+        gt_heatmap = gt_heatmap * mask
+
+    return gt_heatmap
+
+
+def generate_hough_target(
+        annotations, original_w, original_h,
+        target_w, target_h, R=112, THETA=100, target_label=1.0,
+        sigma_rho=1.0, sigma_theta=1.0, mode="gaussian", kernel_size=5
+):
+    """
+    샘플 하나의 Annotation으로 Gaussian 또는 Laplacian GT Hough Heatmap을 생성한다.
 
     입력 Annotation 형식:
         [
@@ -131,7 +211,18 @@ def generate_hough_target(annotations, original_w, original_h, target_w, target_
             THETA=THETA,
         )
 
-        # 여러 직선이 같은 Bin에 들어가도 값은 1로 유지한다.
-        heatmap[0, rho_idx, theta_idx] = 1.0
+        # 4. Bin 인덱스에 Gaussian or laplacian 적용
+        heat_map = make_line_heatmap(
+            rho_idx,
+            theta_idx,
+            R,
+            THETA,
+            sigma_rho=sigma_rho,
+            sigma_theta=sigma_theta,
+            mode=mode,
+            kernel_size=kernel_size,
+        )
+
+        heatmap[0] = torch.maximum(heatmap[0], heat_map)
 
     return heatmap
