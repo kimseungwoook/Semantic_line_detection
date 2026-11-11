@@ -1,8 +1,11 @@
 import torch
+import torch.nn.functional as F
 import xml.etree.ElementTree as ET
 
 from torch.utils.data import Dataset
 from pathlib import Path
+
+from src.hough_target import generate_hough_target
 
 class EventDataset(Dataset):
     def __init__(self, root_dir, threshold):
@@ -80,19 +83,47 @@ class EventDataset(Dataset):
             keepdim = True
         )
 
-        event_input = torch.clamp(count_map.float(), min = 0, max = self.threshold) / 3.0
+        event_input = torch.clamp(
+            count_map.float(),
+            min = 0,
+            max = self.threshold
+        ) / self.threshold
+
+        event_input = F.interpolate(
+            event_input.unsqueeze(0),
+            size = (224, 224),
+            mode = "area"
+        ).squeeze(0)
 
         # 시각화용 이미지
         event_image = (event_input * 255).to(torch.uint8)
 
         # annotation 매칭
-        lines = self.annotations[folder_name][timestamp]
+        annotation = self.annotations[folder_name][timestamp]
+
+        original_h, original_w = count_map.shape[-2:]
+        target_w = 224
+        target_h = 224
+        R = 112
+        THETA = 100
+        target_label = 1.0
+
+        gt_heatmap = generate_hough_target(
+            annotations = annotation,
+            original_w = original_w,
+            original_h = original_h,
+            target_w = target_w,
+            target_h = target_h,
+            R = R, THETA = THETA,
+            target_label = target_label
+        )
 
         return {
             "count_map" : count_map,
             "event_input" : event_input,
             "event_image" : event_image,
-            "annotation" : lines,
+            "annotation" : annotation,
+            "gt_heatmap" : gt_heatmap,
             "file_name" : event_path.name,
             "folder_name" : folder_name
         }
