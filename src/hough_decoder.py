@@ -4,12 +4,6 @@ import torch.nn as nn
 class HoughDecoder(nn.Module):
     def __init__(self):
         super().__init__()
-
-        self.stage1 = nn.Sequential(
-            nn.Conv2d(384, 256, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(256),
-            nn.ReLU()
-        )
         self.branch1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=256, out_channels=64,
@@ -37,7 +31,7 @@ class HoughDecoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU()
         )
-        self.stage2 = nn.Sequential(
+        self.stage = nn.Sequential(
             nn.Conv2d(
                 in_channels=192, out_channels=1,
                 kernel_size=1, stride=1, padding=0
@@ -45,13 +39,11 @@ class HoughDecoder(nn.Module):
         )
 
     def forward(self, x):
-        x = self.stage1(x)
-
         feature1 = self.branch1(x)
         feature2 = self.branch2(x)
         feature3 = self.branch3(x)
 
         x = torch.cat([feature1, feature2, feature3], dim=1)
 
-        x = self.stage2(x)
+        x = self.stage(x)
         return x
