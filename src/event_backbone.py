@@ -76,8 +76,8 @@ class FeatureProjection(nn.Module):
 
     def forward(self, feature_maps):
         feature_map1 = self.fmap1(feature_maps[0])
-        feature_map2 = self.fmap1(feature_maps[1])
-        feature_map3 = self.fmap1(feature_maps[2])
-        feature_map4 = self.fmap1(feature_maps[3])
+        feature_map2 = self.fmap2(feature_maps[1])
+        feature_map3 = self.fmap3(feature_maps[2])
+        feature_map4 = self.fmap4(feature_maps[3])
 
         return [feature_map1, feature_map2, feature_map3, feature_map4]
