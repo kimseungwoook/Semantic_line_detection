@@ -127,3 +127,16 @@ class EventDataset(Dataset):
             "file_name" : event_path.name,
             "folder_name" : folder_name
         }
+
+def event_collate_fn(batch):
+    return {
+        "event_input": torch.stack(
+            [sample["event_input"] for sample in batch]
+        ),
+        "gt_heatmap": torch.stack(
+            [sample["gt_heatmap"] for sample in batch]
+        ),
+        "annotation": [sample["annotation"] for sample in batch],
+        "file_name": [sample["file_name"] for sample in batch],
+        "folder_name": [sample["folder_name"] for sample in batch]
+    }
