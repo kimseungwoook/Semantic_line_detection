@@ -1,5 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
+from pathlib import Path
 from torch.utils.data import Subset, DataLoader
 
 from src.dataset import EventDataset, event_collate_fn
@@ -7,6 +8,7 @@ from src.event_line_model import EventLineModel
 from src.loss import FocalLoss
 
 if __name__ == "__main__":
+    torch.manual_seed(42)
     root_dir = r"C:\Users\admin\Desktop\Semantic_line_detection_200"
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Device : {device}")
@@ -50,6 +52,10 @@ if __name__ == "__main__":
         optimizer.step()
         if i == 0 or (i + 1) % 100 == 0:
             print(f"Step {i + 1}/{steps} | Loss: {loss.item():.6f}")
+
+    checkpoint_path = Path("checkpoints") / "test_event_line_model.pth"
+    torch.save(model.state_dict(), checkpoint_path)
+    print(f"모델 저장: {checkpoint_path.resolve()}")
 
     model.eval()
     with torch.no_grad():
