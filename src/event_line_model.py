@@ -3,7 +3,8 @@ import torch.nn as nn
 
 from src.hough_dictionary import Multi_scale_HoughDictionary
 from src.event_backbone import EventBackbone
-from src.hough_decoder import Hough_fusion, HoughDecoder
+from src.hough_decoder import HoughDecoder
+from src.hough_fusion import Hough_Fusion
 
 class EventLineModel(nn.Module):
     def __init__(self, original_w=224, original_h=224, R=112, Theta=100):
@@ -25,7 +26,7 @@ class EventLineModel(nn.Module):
             THETA = self.Theta,
             operation = self.operation
         )
-        self.hough_fusion = Hough_fusion()
+        self.hough_fusion = Hough_Fusion()
         self.HoughDecoder = HoughDecoder()
 
     def forward(self, x):
