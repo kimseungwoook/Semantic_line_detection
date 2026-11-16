@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from torchvision.transforms.v2.functional import center_crop
+
 from src.event_backbone import EventBackbone
 
 class Multi_scale_HoughDictionary(nn.Module):
@@ -38,64 +40,52 @@ class Multi_scale_HoughDictionary(nn.Module):
 
         return previous_x, previous_y
 
-    def hough_transform(self, H, W, x, y, idx):
-        """
-        :param H: feature map의 Height
-        :param W: feature map의 Width
-        :param x: feature map의 x 좌표
-        :param y: feature map의 y 좌표
-        :param idx : event_backbone stage index
+    def create_hough_dictionary(self, H, W, idx):
+        hough_dictionary = torch.zeros((H * W, self.R, self.THETA))
 
-        :return: Hough space ==> Hough dictionary로 사용
-        """
-        # 허프 공간 생성
-        hough_space = torch.zeros((self.R, self.THETA))
-        # 가상의 입력 feature map 생성
-        feature_map = torch.zeros((H, W))
-        feature_map[y, x] = 1
+        # feature의 모든 위치를 배열로 준비
+        y_grid, x_grid = torch.meshgrid(
+            torch.arange(H, dtype=torch.float32),
+            torch.arange(W, dtype=torch.float32),
+            indexing="ij"
+        )
 
-        # event count map 중심 좌표
+        x = x_grid.flatten()
+        y = y_grid.flatten()
+
+        original_x, original_y = self.previous_center(x, y, self.scale_operation[idx])
+        # event_count_map 중심 좌표
         center_x = (self.original_w - 1) / 2
         center_y = (self.original_h - 1) / 2
-
-        # feature map의 x,y 좌표 ---> 이전 feature map의 좌표 계산
-        op = self.scale_operation[idx]
-        original_x, original_y = self.previous_center(x, y, op)
 
         x_ = original_x - center_x
         y_ = original_y - center_y
 
-        # rho_max : 최대 직선 거리
-        value = center_x ** 2 + center_y ** 2
-        rho_max = torch.sqrt(torch.tensor(value, dtype=torch.float32))
+        rho_max = torch.sqrt(
+            torch.tensor(center_x ** 2 + center_y ** 2, dtype=torch.float32)
+        )
         rho_step = (rho_max * 2) / self.R
 
-        theta_idx = torch.arange(self.THETA)
-        angle = theta_idx.float() * (180.0 / self.THETA)
-        rad = torch.deg2rad(angle)
+        angles = torch.arange(self.THETA).float() * (180.0 / self.THETA)
+        radians = torch.deg2rad(angles)
 
-        # 허프 곡선 계산
-        rho = x_ * torch.cos(rad) + y_ * torch.sin(rad)
+        pixel_indices = torch.arange(H*W)
 
-        # 실제 거리를 허프 공간의 행 번호로 변환
-        rho_idx = torch.floor((rho_max + rho) / rho_step).long()
-        rho_idx = torch.clamp(rho_idx, 0, self.R - 1)
+        for theta_idx in range(self.THETA):
+            theta = radians[theta_idx]
 
-        hough_space[rho_idx, theta_idx] += feature_map[y, x]
+            rho = x_ * torch.cos(theta) + y_ * torch.sin(theta)
 
-        return hough_space
+            rho_indices = torch.floor(
+                (rho_max + rho) / rho_step
+            ).long()
+            rho_indices = rho_indices.clamp(0, self.R - 1)
 
-    def create_hough_dictionary(self, H, W, idx):
-        hough_dictionary = torch.zeros((H * W, self.R, self.THETA))
-
-        HW_count = 0
-        for y in range(H):
-            for x in range(W):
-                hough_space = self.hough_transform(H, W, x, y, idx)
-                hough_dictionary[HW_count] = hough_space
-                HW_count += 1
+            hough_dictionary[pixel_indices, rho_indices, theta_idx] = 1.0
 
         return hough_dictionary
+
+
 
     # multi-scale의 feature map을 해당 feature map의 해상도와 맞는 hough dictionary와 내적
     def forward(self, feature_maps):
