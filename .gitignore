@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+
+# PyTorch 체크포인트
+*.pth
+
+# PyCharm 프로젝트 설정
+/.idea/
+
+# 자동 생성한 시각화 이미지
+/VIS/**/*.png
+/results/**/*.png
+/val_full_hough_check.png
