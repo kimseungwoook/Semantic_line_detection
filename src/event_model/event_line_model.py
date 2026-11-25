@@ -1,20 +1,20 @@
-import torch
 import torch.nn as nn
 
-from src.hough_dictionary import Multi_scale_HoughDictionary
-from src.event_backbone import EventBackbone, FeatureProjection
-from src.hough_decoder import HoughDecoder
-from src.hough_fusion import Hough_Fusion
+from src.hough.hough_dictionary import Multi_scale_HoughDictionary
+from src.event_model.event_backbone import EventBackbone
+from src.feature_projection import FeatureProjection
+from src.Decoder import HoughDecoder
+from src.hough.hough_fusion import Hough_Fusion
 
 class EventLineModel(nn.Module):
-    def __init__(self, original_w=224, original_h=224, R=112, Theta=100, dropout_p=0.0):
+    def __init__(self, original_w=224, original_h=224, R=112, Theta=100, dropout_p=0.0, imagenet_pretrained=False):
         super().__init__()
         self.original_w = original_w
         self.original_h = original_h
         self.R = R
         self.Theta = Theta
         self.feature_shapes = [(56, 56), (28, 28), (14, 14), (7,7)]
-        self.event_backbone = EventBackbone()
+        self.event_backbone = EventBackbone(imagenet_pretrained)
         self.feature_projection = FeatureProjection()
         self.operation = self.event_backbone.get_coordinate_operation()
 

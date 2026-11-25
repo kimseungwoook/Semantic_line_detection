@@ -5,12 +5,12 @@ import xml.etree.ElementTree as ET
 from torch.utils.data import Dataset
 from pathlib import Path
 
-from hough.hough_target import generate_hough_target
+from src.hough.hough_target import generate_hough_target
 
 class EventDataset(Dataset):
-    def __init__(self, root_dir, threshold):
+    def __init__(self, root_dir, event_clip):
         self.root_dir = Path(root_dir)
-        self.threshold = threshold
+        self.event_clip = event_clip
 
         self.data = self.root_dir / "data"
         self.annotation = self.root_dir / "annotations"
@@ -86,8 +86,8 @@ class EventDataset(Dataset):
         event_input = torch.clamp(
             count_map.float(),
             min = 0,
-            max = self.threshold
-        ) / self.threshold
+            max = self.event_clip
+        ) / self.event_clip
 
         event_input = F.interpolate(
             event_input.unsqueeze(0),
