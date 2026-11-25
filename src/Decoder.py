@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 
 class HoughDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout_p=0.0):
         super().__init__()
+        self.dropout = nn.Dropout(p=dropout_p)
         self.branch1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=256, out_channels=64,
@@ -44,6 +45,6 @@ class HoughDecoder(nn.Module):
         feature3 = self.branch3(x)
 
         x = torch.cat([feature1, feature2, feature3], dim=1)
-
+        x = self.dropout(x)
         x = self.stage(x)
         return x

@@ -1,9 +1,9 @@
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from src.dataset import EventDataset, event_collate_fn
-from src.event_line_model import EventLineModel
-from src.loss import FocalLoss
+from event_model.event_dataset import EventDataset, event_collate_fn
+from event_model.event_line_model import EventLineModel
+from metric.loss import FocalLoss
 
 def check_tensor(name, tensor, expected_shape):
     assert tuple(tensor.shape) == expected_shape, (

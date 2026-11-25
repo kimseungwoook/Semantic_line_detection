@@ -7,14 +7,13 @@ from src.hough_decoder import HoughDecoder
 from src.hough_fusion import Hough_Fusion
 
 class EventLineModel(nn.Module):
-    def __init__(self, original_w=224, original_h=224, R=112, Theta=100):
+    def __init__(self, original_w=224, original_h=224, R=112, Theta=100, dropout_p=0.0):
         super().__init__()
         self.original_w = original_w
         self.original_h = original_h
         self.R = R
         self.Theta = Theta
         self.feature_shapes = [(56, 56), (28, 28), (14, 14), (7,7)]
-
         self.event_backbone = EventBackbone()
         self.feature_projection = FeatureProjection()
         self.operation = self.event_backbone.get_coordinate_operation()
@@ -28,7 +27,7 @@ class EventLineModel(nn.Module):
             operation = self.operation
         )
         self.hough_fusion = Hough_Fusion()
-        self.HoughDecoder = HoughDecoder()
+        self.HoughDecoder = HoughDecoder(dropout_p=dropout_p)
 
     def forward(self, x):
         feature_maps = self.event_backbone(x)

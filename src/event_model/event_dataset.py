@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from torch.utils.data import Dataset
 from pathlib import Path
 
-from src.hough_target import generate_hough_target
+from hough.hough_target import generate_hough_target
 
 class EventDataset(Dataset):
     def __init__(self, root_dir, threshold):
