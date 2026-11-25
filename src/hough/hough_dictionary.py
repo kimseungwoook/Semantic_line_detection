@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
-from torchvision.transforms.v2.functional import center_crop
-
-from src.event_backbone import EventBackbone
 
 class Multi_scale_HoughDictionary(nn.Module):
     def __init__(self, original_w, original_h, feature_shapes, R, THETA, operation):
