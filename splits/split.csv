@@ -45,7 +45,7 @@ o_0051,dvSave-2026_05_18_08_46_25.aedat4,132,train
 o_0052,dvSave-2026_05_18_09_24_47.aedat4,52,train
 o_0053,dvSave-2026_05_18_08_48_32.aedat4,119,train
 o_0054,dvSave-2026_05_18_09_25_22.aedat4,38,train
-o_0055,dvSave-2026_05_18_09_25_40.aedat4,97,train
+o_0055,dvSave-2026_05_18_09_25_40.aedat4,97,test
 o_0057,dvSave-2026_05_18_09_26_30.aedat4,44,train
 o_0059,dvSave-2026_05_18_09_29_53.aedat4,78,train
 o_0061,dvSave-2026_05_18_09_31_45.aedat4,148,train
@@ -128,7 +128,7 @@ o_0141,dvSave-2026_05_19_19_28_55.aedat4,244,train
 o_0142,dvSave-2026_05_19_19_29_59.aedat4,248,train
 o_0143,dvSave-2026_05_19_19_30_31.aedat4,150,train
 o_0144,dvSave-2026_05_19_19_31_10.aedat4,283,train
-o_0145,dvSave-2026_05_19_19_31_32.aedat4,143,train
+o_0145,dvSave-2026_05_19_19_31_32.aedat4,143,test
 o_0146,dvSave-2026_05_19_19_32_12.aedat4,276,train
 o_0147,dvSave-2026_05_19_19_32_37.aedat4,128,train
 o_0148,dvSave-2026_05_19_19_32_55.aedat4,241,train
@@ -169,7 +169,7 @@ o_0185,dvSave-2026_05_19_20_02_48.aedat4,104,train
 o_0186,dvSave-2026_05_19_20_03_31.aedat4,193,train
 o_0187,dvSave-2026_05_19_20_04_18.aedat4,172,train
 o_0188,dvSave-2026_05_19_20_06_52.aedat4,21,train
-o_0191,dvSave-2026_05_19_20_08_45.aedat4,175,train
+o_0191,dvSave-2026_05_19_20_08_45.aedat4,175,val
 o_0192,dvSave-2026_05_19_20_09_20.aedat4,189,train
 o_0193,dvSave-2026_05_18_09_28_04.aedat4,47,train
 o_0194,dvSave-2026_05_19_09_25_50.aedat4,51,train
@@ -184,7 +184,7 @@ o_0009,dvSave-2026_05_27_15_10_47.aedat4,131,val
 o_0023,dvSave-2026_05_13_15_06_47.aedat4,54,val
 o_0024,dvSave-2026_05_13_15_07_26.aedat4,60,val
 o_0056,dvSave-2026_05_18_09_26_06.aedat4,41,val
-o_0060,dvSave-2026_05_18_09_31_19.aedat4,96,val
+o_0060,dvSave-2026_05_18_09_31_19.aedat4,96,train
 o_0109,dvSave-2026_05_19_09_21_39.aedat4,369,val
 o_0140,dvSave-2026_05_19_19_28_02.aedat4,248,val
 o_0152,dvSave-2026_05_19_19_34_35.aedat4,303,val
@@ -196,6 +196,6 @@ o_0036,dvSave-2026_05_18_08_22_29.aedat4,68,test
 o_0058,dvSave-2026_07_02_14_09_58.aedat4,60,test
 o_0063,dvSave-2026_07_02_14_12_20.aedat4,111,test
 o_0071,dvSave-2026_05_18_09_41_56.aedat4,177,test
-o_0164,dvSave-2026_05_19_19_43_08.aedat4,230,test
-o_0189,dvSave-2026_05_19_09_21_08.aedat4,90,test
+o_0164,dvSave-2026_05_19_19_43_08.aedat4,230,train
+o_0189,dvSave-2026_05_19_09_21_08.aedat4,90,train
 o_0190,dvSave-2026_05_19_20_08_15.aedat4,15,test

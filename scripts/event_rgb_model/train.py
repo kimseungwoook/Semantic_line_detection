@@ -65,7 +65,8 @@ if __name__ == "__main__":
 
     save_dir = project_dir / "model" / "rgb_event_model" / f"{args.model_name}_ea_{args.ea_threshold}"
     save_dir.mkdir(parents=True, exist_ok=True)
-    save_path = save_dir / f"{args.model_name}_best_hiou.pth"
+    hiou_save_path = save_dir / f"{args.model_name}_best_hiou.pth"
+    f1_save_path = save_dir / f"{args.model_name}_best_f1.pth"
     history_path = save_dir / "history.csv"
     split_path = project_dir / "splits" / "split.csv"
 
@@ -109,7 +110,9 @@ if __name__ == "__main__":
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay
     )
 
-    best_hiou = -1.0
+    best_f1 = float("-inf")
+    best_hiou = float("-inf")
+    stopping_reference_f1 = float("-inf")
     stopping_reference_hiou = float("-inf")
     epochs_without_improvement = 0
 
@@ -207,20 +210,17 @@ if __name__ == "__main__":
 
         val_loss_mean = val_loss_sum / len(val_dataset)
         mean_hiou = sum(hiou_scores) / len(hiou_scores)
+        model_to_save = model.module if isinstance(model, torch.nn.DataParallel) else model
+
+        if f1 > best_f1:
+            best_f1 = f1
+            torch.save(model_to_save.state_dict(), f1_save_path)
+            print(f"모델 저장 | Epoch={epoch + 1} | Best F1={best_f1:.4f}")
+
         if mean_hiou > best_hiou:
             best_hiou = mean_hiou
-
-            if isinstance(model, torch.nn.DataParallel):
-                model_to_save = model.module
-            else:
-                model_to_save = model
-
-            torch.save(model_to_save.state_dict(), save_path)
-
-            print(
-                f"모델 저장 | Epoch={epoch + 1}"
-                f" | Best HIoU={best_hiou:.4f}"
-            )
+            torch.save(model_to_save.state_dict(), hiou_save_path)
+            print(f"모델 저장 | Epoch={epoch + 1} | Best HIoU={best_hiou:.4f}")
 
         history.append({
             "epoch": epoch + 1,
@@ -244,8 +244,16 @@ if __name__ == "__main__":
             f" | HIoU={mean_hiou:.4f}"
         )
 
-        if mean_hiou >= stopping_reference_hiou + args.min_delta:
+        f1_improved = f1 >= stopping_reference_f1 + args.min_delta
+        hiou_improved = mean_hiou >= stopping_reference_hiou + args.min_delta
+
+        if f1_improved:
+            stopping_reference_f1 = f1
+
+        if hiou_improved:
             stopping_reference_hiou = mean_hiou
+
+        if f1_improved or hiou_improved:
             epochs_without_improvement = 0
         else:
             epochs_without_improvement += 1
@@ -253,8 +261,9 @@ if __name__ == "__main__":
         if epochs_without_improvement >= args.patience:
             print(
                 f"Early stopping | Epoch={epoch + 1}"
+                f" | Best Val F1={best_f1:.4f}"
                 f" | Best Val HIoU={best_hiou:.4f}"
-                f" | No significant improvement for {epochs_without_improvement} epochs"
+                f" | Neither metric improved enough for {epochs_without_improvement} epochs"
             )
             break
 
