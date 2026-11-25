@@ -8,6 +8,6 @@ __pycache__/
 /.idea/
 
 # 자동 생성한 시각화 이미지
-/VIS/**/*.png
+/VIS/
 /results/**/*.png
 /val_full_hough_check.png
