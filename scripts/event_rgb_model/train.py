@@ -1,6 +1,7 @@
 import torch
 import argparse
 import csv
+import json
 from tqdm import tqdm
 from pathlib import Path
 from torch.utils.data import DataLoader, Subset
@@ -28,9 +29,8 @@ if __name__ == "__main__":
     parser.add_argument("--top_k", type=int, default=6)
     parser.add_argument("--nms_radius", type=int, default=2)
     parser.add_argument("--score_threshold", type=float, default=0.2)
+    parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--ea_threshold", type=float, default=0.90)
-    parser.add_argument("--patience", type=int, default=15)
-    parser.add_argument("--min_delta", type=float, default=0.001)
     args = parser.parse_args()
 
     if not torch.cuda.is_available():
@@ -46,7 +46,7 @@ if __name__ == "__main__":
           f"gpu : {args.gpu}\n"
           f"model_name : {args.model_name}\n"
           f"dropout : {args.dropout}\n"
-          f"imagenet_pretrained : {args.imagenet_pretrained}"
+          f"imagenet_pretrained : {args.imagenet_pretrained}\n"
           f"epochs : {args.epochs}\n"
           f"batch_size : {args.batch_size}\n"
           f"lr : {args.lr}\n"
@@ -56,15 +56,18 @@ if __name__ == "__main__":
           f"nms_radius : {args.nms_radius}\n"
           f"score_threshold : {args.score_threshold}\n"
           f"ea_threshold : {args.ea_threshold}\n"
-          f"patience : {args.patience}\n"
-          f"min_delta : {args.min_delta}\n"
           f"-------------------")
 
-    root_dir = r"C:\Users\admin\Desktop\Semantic_line_detection_200"
+    root_dir = r"/home/kim/hdd_datasets/kim/datasets/Semantic_line_detection_200"
     project_dir = Path(__file__).resolve().parents[2]
 
-    save_dir = project_dir / "model" / "rgb_event_model" / f"{args.model_name}_ea_{args.ea_threshold}"
+    save_dir = project_dir / "model" / "rgb_event_model" / f"{args.model_name}_score_{args.score_threshold}"
     save_dir.mkdir(parents=True, exist_ok=True)
+
+    parameter_path = save_dir / "parameters.json"
+    with parameter_path.open("x", encoding="utf-8") as file:
+        json.dump(vars(args), file, indent=4)
+
     hiou_save_path = save_dir / f"{args.model_name}_best_hiou.pth"
     f1_save_path = save_dir / f"{args.model_name}_best_f1.pth"
     history_path = save_dir / "history.csv"
@@ -91,12 +94,12 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size,
-        shuffle=True, num_workers=0,
+        shuffle=True, num_workers=args.num_workers,
         collate_fn=rgb_event_collate_fn
     )
     val_dataloader = DataLoader(
         val_dataset, batch_size=args.batch_size,
-        shuffle=False, num_workers=0,
+        shuffle=False, num_workers=args.num_workers,
         collate_fn=rgb_event_collate_fn
     )
 
@@ -112,9 +115,6 @@ if __name__ == "__main__":
 
     best_f1 = float("-inf")
     best_hiou = float("-inf")
-    stopping_reference_f1 = float("-inf")
-    stopping_reference_hiou = float("-inf")
-    epochs_without_improvement = 0
 
     history = []
     fieldnames = ["epoch", "train_loss", "val_loss", "precision", "recall", "f1", "hiou"]
@@ -243,29 +243,6 @@ if __name__ == "__main__":
             f" | F1={f1:.4f}",
             f" | HIoU={mean_hiou:.4f}"
         )
-
-        f1_improved = f1 >= stopping_reference_f1 + args.min_delta
-        hiou_improved = mean_hiou >= stopping_reference_hiou + args.min_delta
-
-        if f1_improved:
-            stopping_reference_f1 = f1
-
-        if hiou_improved:
-            stopping_reference_hiou = mean_hiou
-
-        if f1_improved or hiou_improved:
-            epochs_without_improvement = 0
-        else:
-            epochs_without_improvement += 1
-
-        if epochs_without_improvement >= args.patience:
-            print(
-                f"Early stopping | Epoch={epoch + 1}"
-                f" | Best Val F1={best_f1:.4f}"
-                f" | Best Val HIoU={best_hiou:.4f}"
-                f" | Neither metric improved enough for {epochs_without_improvement} epochs"
-            )
-            break
 
     plot_path = save_dir / "learning_curves.png"
     save_training_plot(history, plot_path, args.ea_threshold)
